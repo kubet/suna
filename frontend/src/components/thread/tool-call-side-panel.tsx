@@ -6,12 +6,21 @@ import React from 'react';
 import { Slider } from '@/components/ui/slider';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ApiMessageType } from '@/components/thread/types';
-import { CircleDashed, X, ChevronLeft, ChevronRight, Computer, Radio, Maximize2, Minimize2 } from 'lucide-react';
+import { CircleDashed, X, ChevronLeft, ChevronRight, Computer, Radio, Maximize2, Minimize2, Clock, CheckCircle, AlertCircle, Pause, Play, Trash2, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
 import { ToolView } from './tool-views/wrapper';
 import { motion, AnimatePresence } from 'framer-motion';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu';
+import { Badge } from '@/components/ui/badge';
 
 export interface ToolCallInput {
   assistantCall: {
@@ -58,8 +67,85 @@ interface ToolCallSnapshot {
   timestamp: number;
 }
 
+interface BackgroundTask {
+  id: string;
+  name: string;
+  description: string;
+  status: 'active' | 'paused' | 'completed' | 'failed';
+  schedule: string;
+  lastRun?: string;
+  nextRun?: string;
+  successCount: number;
+  failureCount: number;
+  type: 'monitoring' | 'data-collection' | 'automation' | 'alert';
+}
+
 const FLOATING_LAYOUT_ID = 'tool-panel-float';
 const CONTENT_LAYOUT_ID = 'tool-panel-content';
+
+// Mock background tasks data
+const mockBackgroundTasks: BackgroundTask[] = [
+  {
+    id: '1',
+    name: 'BTC Price Monitor',
+    description: 'Check Bitcoin price every 5 minutes',
+    status: 'active',
+    schedule: 'Every 5 minutes',
+    lastRun: '2 minutes ago',
+    nextRun: '3 minutes',
+    successCount: 142,
+    failureCount: 2,
+    type: 'monitoring'
+  },
+  {
+    id: '2',
+    name: 'Market Data Sync',
+    description: 'Sync market data from multiple sources',
+    status: 'active',
+    schedule: 'Every 15 minutes',
+    lastRun: '8 minutes ago',
+    nextRun: '7 minutes',
+    successCount: 89,
+    failureCount: 0,
+    type: 'data-collection'
+  },
+  {
+    id: '3',
+    name: 'System Health Check',
+    description: 'Monitor system resources and performance',
+    status: 'paused',
+    schedule: 'Every 30 minutes',
+    lastRun: '45 minutes ago',
+    nextRun: 'Paused',
+    successCount: 67,
+    failureCount: 1,
+    type: 'monitoring'
+  },
+  {
+    id: '4',
+    name: 'Backup Automation',
+    description: 'Automated database backup',
+    status: 'completed',
+    schedule: 'Daily at 2:00 AM',
+    lastRun: '6 hours ago',
+    nextRun: '18 hours',
+    successCount: 12,
+    failureCount: 0,
+    type: 'automation'
+  },
+  {
+    id: '5',
+    name: 'Error Alert System',
+    description: 'Monitor and alert on system errors',
+    status: 'active',
+    schedule: 'Every 2 minutes',
+    lastRun: '1 minute ago',
+    nextRun: '1 minute',
+    successCount: 234,
+    failureCount: 0,
+    type: 'alert'
+  }
+];
 
 export function ToolCallSidePanel({
   isOpen,
@@ -81,12 +167,120 @@ export function ToolCallSidePanel({
   const [navigationMode, setNavigationMode] = React.useState<'live' | 'manual'>('live');
   const [toolCallSnapshots, setToolCallSnapshots] = React.useState<ToolCallSnapshot[]>([]);
   const [isInitialized, setIsInitialized] = React.useState(false);
+  const [isTaskListOpen, setIsTaskListOpen] = React.useState(false);
+  const [backgroundTasks, setBackgroundTasks] = React.useState<BackgroundTask[]>(mockBackgroundTasks);
 
   const isMobile = useIsMobile();
 
   const handleClose = React.useCallback(() => {
     onClose();
   }, [onClose]);
+
+  const getStatusIcon = (status: BackgroundTask['status']) => {
+    switch (status) {
+      case 'active':
+        return <CheckCircle className="h-3 w-3 text-green-500" />;
+      case 'paused':
+        return <Pause className="h-3 w-3 text-yellow-500" />;
+      case 'completed':
+        return <CheckCircle className="h-3 w-3 text-blue-500" />;
+      case 'failed':
+        return <AlertCircle className="h-3 w-3 text-red-500" />;
+      default:
+        return <CircleDashed className="h-3 w-3 text-gray-500" />;
+    }
+  };
+
+  const getStatusBadge = (status: BackgroundTask['status']) => {
+    switch (status) {
+      case 'active':
+        return <Badge variant="highlight" className="text-xs">Active</Badge>;
+      case 'paused':
+        return <Badge variant="outline" className="text-xs">Paused</Badge>;
+      case 'completed':
+        return <Badge variant="beta" className="text-xs">Completed</Badge>;
+      case 'failed':
+        return <Badge variant="destructive" className="text-xs">Failed</Badge>;
+      default:
+        return <Badge variant="secondary" className="text-xs">Unknown</Badge>;
+    }
+  };
+
+  const handleTaskToggle = (taskId: string) => {
+    setBackgroundTasks(prev => prev.map(task =>
+      task.id === taskId
+        ? { ...task, status: task.status === 'active' ? 'paused' : 'active' }
+        : task
+    ));
+  };
+
+  const handleTaskDelete = (taskId: string) => {
+    setBackgroundTasks(prev => prev.filter(task => task.id !== taskId));
+  };
+
+  const BackgroundTaskList = () => (
+    <div className="w-80 max-h-96 overflow-y-auto">
+      <div className="p-3 border-b">
+        <div className="flex items-center justify-between">
+          <h3 className="font-medium text-sm">Background Tasks</h3>
+
+        </div>
+      </div>
+
+      <div className="p-2 space-y-2">
+        {backgroundTasks.map((task) => (
+          <div key={task.id} className="p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  {getStatusIcon(task.status)}
+                  <h4 className="font-medium text-sm truncate">{task.name}</h4>
+                  {getStatusBadge(task.status)}
+                </div>
+                <p className="text-xs text-muted-foreground mb-2">{task.description}</p>
+
+                <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                  <span>Schedule: {task.schedule}</span>
+                  <span>Success: {task.successCount}</span>
+                  {task.failureCount > 0 && (
+                    <span className="text-red-500">Failed: {task.failureCount}</span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                  <span>Last: {task.lastRun}</span>
+                  <span>Next: {task.nextRun}</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => handleTaskToggle(task.id)}
+                  className="h-6 w-6 p-0"
+                >
+                  {task.status === 'active' ? (
+                    <Pause className="h-3 w-3" />
+                  ) : (
+                    <Play className="h-3 w-3" />
+                  )}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => handleTaskDelete(task.id)}
+                  className="h-6 w-6 p-0 text-red-500 hover:text-red-600"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 
   React.useEffect(() => {
     const newSnapshots = toolCalls.map((toolCall, index) => ({
@@ -440,15 +634,35 @@ export function ToolCallSidePanel({
                         {agentName ? `${agentName}'s Computer` : 'Suna\'s Computer'}
                       </h2>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={handleClose}
-                      className="h-8 w-8"
-                      title="Minimize to floating preview"
-                    >
-                      <Minimize2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <DropdownMenu open={isTaskListOpen} onOpenChange={setIsTaskListOpen}>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 relative"
+                            title="Background Tasks"
+                          >
+                            <Clock className="h-4 w-4" />
+                            {backgroundTasks.filter(t => t.status === 'active').length > 0 && (
+                              <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-background" />
+                            )}
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-80 p-0">
+                          <BackgroundTaskList />
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={handleClose}
+                        className="h-8 w-8"
+                        title="Minimize to floating preview"
+                      >
+                        <Minimize2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
                 <div className="flex-1 p-4 overflow-auto">
@@ -478,14 +692,34 @@ export function ToolCallSidePanel({
                   {agentName ? `${agentName}'s Computer` : 'Suna\'s Computer'}
                 </h2>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleClose}
-                className="h-8 w-8"
-              >
-                <X className="h-4 w-4" />
-              </Button>
+              <div className="flex items-center gap-2">
+                <DropdownMenu open={isTaskListOpen} onOpenChange={setIsTaskListOpen}>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 relative"
+                      title="Background Tasks"
+                    >
+                      <Clock className="h-4 w-4" />
+                      {backgroundTasks.filter(t => t.status === 'active').length > 0 && (
+                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-background" />
+                      )}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-80 p-0">
+                    <BackgroundTaskList />
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleClose}
+                  className="h-8 w-8"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </div>
           <div className="flex flex-col items-center justify-center flex-1 p-8">
@@ -525,6 +759,24 @@ export function ToolCallSidePanel({
                   </h2>
                 </div>
                 <div className="flex items-center gap-2">
+                  <DropdownMenu open={isTaskListOpen} onOpenChange={setIsTaskListOpen}>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 relative"
+                        title="Background Tasks"
+                      >
+                        <Clock className="h-4 w-4" />
+                        {backgroundTasks.filter(t => t.status === 'active').length > 0 && (
+                          <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-background" />
+                        )}
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-80 p-0">
+                      <BackgroundTaskList />
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   <div className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 flex items-center gap-1.5">
                     <CircleDashed className="h-3 w-3 animate-spin" />
                     <span>Running</span>
@@ -570,14 +822,34 @@ export function ToolCallSidePanel({
                   {agentName ? `${agentName}'s Computer` : 'Suna\'s Computer'}
                 </h2>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleClose}
-                className="h-8 w-8"
-              >
-                <X className="h-4 w-4" />
-              </Button>
+              <div className="flex items-center gap-2">
+                <DropdownMenu open={isTaskListOpen} onOpenChange={setIsTaskListOpen}>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 relative"
+                      title="Background Tasks"
+                    >
+                      <Clock className="h-4 w-4" />
+                      {backgroundTasks.filter(t => t.status === 'active').length > 0 && (
+                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-background" />
+                      )}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-80 p-0">
+                    <BackgroundTaskList />
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleClose}
+                  className="h-8 w-8"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </div>
           <div className="flex-1 p-4 overflow-auto">
@@ -621,8 +893,27 @@ export function ToolCallSidePanel({
               </h2>
             </motion.div>
 
-            {displayToolCall.toolResult?.content && !isStreaming && (
-              <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
+              <DropdownMenu open={isTaskListOpen} onOpenChange={setIsTaskListOpen}>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 relative"
+                    title="Background Tasks"
+                  >
+                    <Clock className="h-4 w-4" />
+                    {backgroundTasks.filter(t => t.status === 'active').length > 0 && (
+                      <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-background" />
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-80 p-0">
+                  <BackgroundTaskList />
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {displayToolCall.toolResult?.content && !isStreaming && (
                 <Button
                   variant="ghost"
                   size="icon"
@@ -632,38 +923,38 @@ export function ToolCallSidePanel({
                 >
                   <Minimize2 className="h-4 w-4" />
                 </Button>
-              </div>
-            )}
+              )}
 
-            {isStreaming && (
-              <div className="flex items-center gap-2">
-                <div className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 flex items-center gap-1.5">
-                  <CircleDashed className="h-3 w-3 animate-spin" />
-                  <span>Running</span>
-                </div>
+              {isStreaming && (
+                <>
+                  <div className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 flex items-center gap-1.5">
+                    <CircleDashed className="h-3 w-3 animate-spin" />
+                    <span>Running</span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleClose}
+                    className="h-8 w-8 ml-1"
+                    title="Minimize to floating preview"
+                  >
+                    <Minimize2 className="h-4 w-4" />
+                  </Button>
+                </>
+              )}
+
+              {!displayToolCall.toolResult?.content && !isStreaming && (
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={handleClose}
-                  className="h-8 w-8 ml-1"
+                  className="h-8 w-8"
                   title="Minimize to floating preview"
                 >
                   <Minimize2 className="h-4 w-4" />
                 </Button>
-              </div>
-            )}
-
-            {!displayToolCall.toolResult?.content && !isStreaming && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleClose}
-                className="h-8 w-8"
-                title="Minimize to floating preview"
-              >
-                <Minimize2 className="h-4 w-4" />
-              </Button>
-            )}
+              )}
+            </div>
           </div>
         </motion.div>
 
