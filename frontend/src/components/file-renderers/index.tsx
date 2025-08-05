@@ -5,16 +5,28 @@ import { cn } from '@/lib/utils';
 import { MarkdownRenderer } from './markdown-renderer';
 import { CodeRenderer } from './code-renderer';
 import { PdfRenderer } from './pdf-renderer';
+import { PptxRenderer } from './pptx-renderer';
 import { ImageRenderer } from './image-renderer';
 import { BinaryRenderer } from './binary-renderer';
 import { HtmlRenderer } from './html-renderer';
 import { constructHtmlPreviewUrl } from '@/lib/utils/url';
 import { CsvRenderer } from './csv-renderer';
 
+// Re-export all renderers
+export { MarkdownRenderer } from './markdown-renderer';
+export { CodeRenderer } from './code-renderer';
+export { PdfRenderer } from './pdf-renderer';
+export { PptxRenderer } from './pptx-renderer';
+export { ImageRenderer } from './image-renderer';
+export { BinaryRenderer } from './binary-renderer';
+export { HtmlRenderer } from './html-renderer';
+export { CsvRenderer } from './csv-renderer';
+
 export type FileType =
   | 'markdown'
   | 'code'
   | 'pdf'
+  | 'pptx'
   | 'image'
   | 'text'
   | 'binary'
@@ -90,6 +102,7 @@ export function getFileTypeFromExtension(fileName: string): FileType {
     'ico',
   ];
   const pdfExtensions = ['pdf'];
+  const pptxExtensions = ['pptx', 'ppt'];
   const csvExtensions = ['csv', 'tsv'];
   const textExtensions = ['txt', 'log', 'env', 'ini'];
 
@@ -101,6 +114,8 @@ export function getFileTypeFromExtension(fileName: string): FileType {
     return 'image';
   } else if (pdfExtensions.includes(extension)) {
     return 'pdf';
+  } else if (pptxExtensions.includes(extension)) {
+    return 'pptx';
   } else if (csvExtensions.includes(extension)) {
     return 'csv';
   } else if (textExtensions.includes(extension)) {
@@ -174,6 +189,17 @@ export function FileRenderer({
       ? constructHtmlPreviewUrl(project.sandbox.sandbox_url, fileName)
       : blobHtmlUrl; // Use blob URL as fallback
 
+  // Construct PPTX file URL for Office Online if we have a sandbox
+  const pptxPreviewUrl = React.useMemo(() => {
+    const isPptxFile = fileType === 'pptx';
+    if (isPptxFile && project?.sandbox?.sandbox_url && fileName) {
+      // Remove /workspace prefix if present and construct direct sandbox URL
+      const cleanPath = fileName.replace(/^\/workspace\//, '');
+      return `${project.sandbox.sandbox_url.replace(/\/$/, '')}/${cleanPath}`;
+    }
+    return binaryUrl; // Use blob URL as fallback
+  }, [fileType, project?.sandbox?.sandbox_url, fileName, binaryUrl]);
+
   // Clean up blob URL on unmount
   React.useEffect(() => {
     return () => {
@@ -191,6 +217,8 @@ export function FileRenderer({
         <ImageRenderer url={binaryUrl} />
       ) : fileType === 'pdf' && binaryUrl ? (
         <PdfRenderer url={binaryUrl} />
+      ) : fileType === 'pptx' && (pptxPreviewUrl || binaryUrl) ? (
+        <PptxRenderer url={pptxPreviewUrl || binaryUrl} />
       ) : fileType === 'markdown' ? (
         <MarkdownRenderer content={content || ''} ref={markdownRef} />
       ) : fileType === 'csv' ? (

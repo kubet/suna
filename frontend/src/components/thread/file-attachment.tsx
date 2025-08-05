@@ -9,13 +9,17 @@ import { AttachmentGroup } from './attachment-group';
 import { HtmlRenderer } from './preview-renderers/html-renderer';
 import { MarkdownRenderer } from './preview-renderers/markdown-renderer';
 import { CsvRenderer } from './preview-renderers/csv-renderer';
+import { PdfRenderer as PdfPreviewRenderer } from './preview-renderers/pdf-renderer';
+import { PptxRenderer as PptxPreviewRenderer } from './preview-renderers/pptx-renderer';
+import { PdfRenderer } from '@/components/file-renderers/pdf-renderer';
+import { PptxRenderer } from '@/components/file-renderers/pptx-renderer';
 import { useFileContent, useImageContent } from '@/hooks/react-query/files';
 import { useAuth } from '@/components/AuthProvider';
 import { Project } from '@/lib/api';
 
 // Define basic file types
 export type FileType =
-    | 'image' | 'code' | 'text' | 'pdf'
+    | 'image' | 'code' | 'text' | 'pdf' | 'pptx'
     | 'audio' | 'video' | 'spreadsheet'
     | 'archive' | 'database' | 'markdown'
     | 'csv'
@@ -30,6 +34,7 @@ function getFileType(filename: string): FileType {
     if (['txt', 'log', 'env'].includes(ext)) return 'text';
     if (['md', 'markdown'].includes(ext)) return 'markdown';
     if (ext === 'pdf') return 'pdf';
+    if (ext === 'pptx' || ext === 'ppt') return 'pptx';
     if (['mp3', 'wav', 'ogg', 'flac'].includes(ext)) return 'audio';
     if (['mp4', 'webm', 'mov', 'avi'].includes(ext)) return 'video';
     if (['csv', 'tsv'].includes(ext)) return 'csv';
@@ -48,6 +53,7 @@ function getFileIcon(type: FileType): React.ElementType {
         text: FileText,
         markdown: FileText,
         pdf: FileType,
+        pptx: FileType,
         audio: FileAudio,
         video: FileVideo,
         spreadsheet: FileSpreadsheet,
@@ -72,6 +78,7 @@ function getTypeLabel(type: FileType, extension?: string): string {
         text: 'Text',
         markdown: 'Markdown',
         pdf: 'PDF',
+        pptx: 'PowerPoint',
         audio: 'Audio',
         video: 'Video',
         spreadsheet: 'Spreadsheet',
@@ -98,6 +105,7 @@ function getFileSize(filepath: string, type: FileType): string {
         text: 0.3,
         markdown: 0.3,
         pdf: 8.0,
+        pptx: 6.0,
         spreadsheet: 3.0,
         csv: 2.0,
         archive: 5.0,
@@ -138,6 +146,28 @@ function getFileUrl(sandboxId: string | undefined, path: string): string {
     url.searchParams.append('path', path);
 
     return url.toString();
+}
+
+// Get the sandbox URL for file content (for external services like Office Online)
+function getSandboxFileUrl(project: Project | undefined, path: string): string {
+    if (!project?.sandbox) return path;
+
+    const sandboxUrl = typeof project.sandbox === 'string'
+        ? undefined
+        : project.sandbox?.sandbox_url;
+
+    if (!sandboxUrl) return path;
+
+    // Normalize path to start with /workspace
+    let normalizedPath = path;
+    if (!normalizedPath.startsWith('/workspace')) {
+        normalizedPath = `/workspace/${normalizedPath.startsWith('/') ? normalizedPath.substring(1) : normalizedPath}`;
+    }
+
+    // Remove /workspace prefix for sandbox URL
+    const cleanPath = normalizedPath.replace(/^\/workspace\//, '');
+
+    return `${sandboxUrl.replace(/\/$/, '')}/${cleanPath}`;
 }
 
 interface FileAttachmentProps {
@@ -192,19 +222,21 @@ export function FileAttachment({
     const isImage = fileType === 'image';
     const isHtmlOrMd = extension === 'html' || extension === 'htm' || extension === 'md' || extension === 'markdown';
     const isCsv = extension === 'csv' || extension === 'tsv';
+    const isPdfOrPptx = extension === 'pdf' || extension === 'pptx' || extension === 'ppt';
     const isGridLayout = customStyle?.gridColumn === '1 / -1' || Boolean(customStyle && ('--attachment-height' in customStyle));
     // Define isInlineMode early, before any hooks
     const isInlineMode = !isGridLayout;
-    const shouldShowPreview = (isHtmlOrMd || isCsv) && showPreview && collapsed === false;
+    const shouldShowPreview = (isHtmlOrMd || isCsv || isPdfOrPptx) && showPreview && collapsed === false;
 
-    // Use the React Query hook to fetch file content
+    // Use the React Query hook to fetch file content (only for text-based files)
+    const needsFileContent = shouldShowPreview && (isHtmlOrMd || isCsv);
     const {
         data: fileContent,
         isLoading: fileContentLoading,
         error: fileContentError
     } = useFileContent(
-        shouldShowPreview ? sandboxId : undefined,
-        shouldShowPreview ? filepath : undefined
+        needsFileContent ? sandboxId : undefined,
+        needsFileContent ? filepath : undefined
     );
 
     // Use the React Query hook to fetch image content with authentication
@@ -217,12 +249,22 @@ export function FileAttachment({
         isImage && showPreview ? filepath : undefined
     );
 
+    // Use the same hook for binary files (PDF/PPTX) to get blob URLs
+    const {
+        data: binaryUrl,
+        isLoading: binaryLoading,
+        error: binaryError
+    } = useImageContent(
+        isPdfOrPptx && shouldShowPreview && sandboxId ? sandboxId : undefined,
+        isPdfOrPptx && shouldShowPreview ? filepath : undefined
+    );
+
     // Set error state based on query errors
     React.useEffect(() => {
-        if (fileContentError || imageError) {
+        if (fileContentError || imageError || binaryError) {
             setHasError(true);
         }
-    }, [fileContentError, imageError]);
+    }, [fileContentError, imageError, binaryError]);
 
     const handleClick = () => {
         if (onClick) {
@@ -378,7 +420,7 @@ export function FileAttachment({
         'tsv': CsvRenderer
     };
 
-    // HTML/MD/CSV preview when not collapsed and in grid layout
+    // HTML/MD/CSV/PDF/PPTX preview when not collapsed and in grid layout
     if (shouldShowPreview && isGridLayout) {
         // Determine the renderer component
         const Renderer = rendererMap[extension as keyof typeof rendererMap];
@@ -390,7 +432,7 @@ export function FileAttachment({
                     "border",
                     "bg-card",
                     "overflow-hidden",
-                    "h-[300px]", // Fixed height for previews
+                    isPdfOrPptx ? "h-[500px]" : "h-[300px]", // Larger height for PDF/PPTX
                     "pt-10", // Room for header
                     className
                 )}
@@ -403,17 +445,47 @@ export function FileAttachment({
             >
                 {/* Content area */}
                 <div className="h-full w-full relative">
-                    {/* Only show content if we have it and no errors */}
-                    {!hasError && fileContent && (
+                    {/* Show content based on file type */}
+                    {!hasError && (
                         <>
-                            {Renderer ? (
+                            {/* For PDF files */}
+                            {extension === 'pdf' && (
+                                <PdfRenderer
+                                    url={binaryUrl || localPreviewUrl || fileUrl}
+                                    className="h-full w-full"
+                                />
+                            )}
+
+                            {/* For PPTX files */}
+                            {(extension === 'pptx' || extension === 'ppt') && (
+                                <PptxRenderer
+                                    url={localPreviewUrl || getSandboxFileUrl(project, filepath)}
+                                    className="h-full w-full"
+                                />
+                            )}
+
+                            {/* Loading state for binary files */}
+                            {isPdfOrPptx && binaryLoading && !binaryUrl && !localPreviewUrl && (
+                                <div className="flex items-center justify-center h-full">
+                                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                                    <span className="ml-2 text-muted-foreground">
+                                        Loading {extension === 'pdf' ? 'PDF' : 'presentation'}...
+                                    </span>
+                                </div>
+                            )}
+
+                            {/* For text-based files that need content */}
+                            {fileContent && (isHtmlOrMd || isCsv) && Renderer && (
                                 <Renderer
                                     content={fileContent}
                                     previewUrl={fileUrl}
                                     className="h-full w-full"
                                     project={project}
                                 />
-                            ) : (
+                            )}
+
+                            {/* No renderer available */}
+                            {!isPdfOrPptx && !fileContent && !fileContentLoading && (
                                 <div className="p-4 text-muted-foreground">
                                     No preview available for this file type
                                 </div>
@@ -441,15 +513,15 @@ export function FileAttachment({
                         </div>
                     )}
 
-                    {/* Loading state */}
-                    {fileContentLoading && (
+                    {/* Loading state - only for text-based files */}
+                    {fileContentLoading && !isPdfOrPptx && (
                         <div className="absolute inset-0 flex items-center justify-center bg-background/50">
                             <Loader2 className="h-6 w-6 text-primary animate-spin" />
                         </div>
                     )}
 
-                    {/* Empty content state - show when not loading and no content yet */}
-                    {!fileContent && !fileContentLoading && !hasError && (
+                    {/* Empty content state - show when not loading and no content yet (only for text-based files) */}
+                    {!fileContent && !fileContentLoading && !hasError && !isPdfOrPptx && (
                         <div className="h-full w-full flex flex-col items-center justify-center p-4 pointer-events-none">
                             <div className="text-muted-foreground text-sm mb-2">
                                 Preview available

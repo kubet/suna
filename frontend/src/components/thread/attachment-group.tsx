@@ -118,7 +118,7 @@ export function AttachmentGroup({
     const isPreviewableFile = (file: string | UploadedFile): boolean => {
         const path = getFilePath(file);
         const ext = path.split('.').pop()?.toLowerCase() || '';
-        return ext === 'html' || ext === 'htm' || ext === 'md' || ext === 'markdown' || ext === 'csv' || ext === 'tsv';
+        return ext === 'html' || ext === 'htm' || ext === 'md' || ext === 'markdown' || ext === 'csv' || ext === 'tsv' || ext === 'pptx' || ext === 'pdf';
     };
 
     // Pre-compute any conditional values used in rendering
