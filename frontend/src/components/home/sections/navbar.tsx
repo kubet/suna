@@ -140,7 +140,7 @@ export function Navbar() {
                   height={14}
                   className="md:w-[100px] md:h-[18px]"
                   priority
-                /> 
+                />
               </Link>
             </div>
 
@@ -261,27 +261,26 @@ export function Navbar() {
                               setIsDrawerOpen(false);
                               return;
                             }
-                            
+
                             e.preventDefault();
-                            
+
                             // If we're not on the homepage, redirect to homepage with the section
                             if (pathname !== '/') {
                               router.push(`/${item.href}`);
                               setIsDrawerOpen(false);
                               return;
                             }
-                            
+
                             const element = document.getElementById(
                               item.href.substring(1),
                             );
                             element?.scrollIntoView({ behavior: 'smooth' });
                             setIsDrawerOpen(false);
                           }}
-                          className={`underline-offset-4 hover:text-primary/80 transition-colors ${
-                            (item.href.startsWith('#') && pathname === '/' && activeSection === item.href.substring(1)) || (item.href === pathname)
+                          className={`underline-offset-4 hover:text-primary/80 transition-colors ${(item.href.startsWith('#') && pathname === '/' && activeSection === item.href.substring(1)) || (item.href === pathname)
                               ? 'text-primary font-medium'
                               : 'text-primary/60'
-                          }`}
+                            }`}
                         >
                           {item.name}
                         </a>
@@ -331,5 +330,5 @@ export function Navbar() {
         )}
       </AnimatePresence>
     </header>
-  ); 
+  );
 }

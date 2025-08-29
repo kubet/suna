@@ -244,9 +244,9 @@ export function HeroSection() {
               </svg>
             </span>
           </Link> */}
-          <div className="flex flex-col items-center justify-center gap-3 sm:gap-4 pt-8 sm:pt-20 max-w-4xl mx-auto">
-            <h1 className="text-3xl md:text-3xl lg:text-4xl xl:text-5xl font-medium tracking-tighter text-balance text-center px-2">
-              <span className="text-primary">What do you want to automate today?</span>
+          <div className="flex flex-col items-center justify-center gap-3 sm:gap-4 pt-8 sm:pt-20 max-w-4xl mx-auto pb-7">
+            <h1 className="text-2xl md:text-3xl lg:text-4xl font-medium tracking-tighter text-balance text-center px-2">
+              What do you want to automate today?
             </h1>
           </div>
 
@@ -274,8 +274,8 @@ export function HeroSection() {
             </div>
 
             {/* Examples section - right after chat input */}
-            <div className="w-full pt-2">
-              <Examples onSelectPrompt={setInputValue} count={tablet ? 2 : 4} />
+            <div className="w-full">
+              <Examples onSelectPrompt={setInputValue} />
             </div>
           </div>
 
