@@ -28,7 +28,6 @@ import { useThreadQuery } from '@/hooks/react-query/threads/use-threads';
 import { normalizeFilenameToNFC } from '@/lib/utils/unicode';
 import { KortixLogo } from '../sidebar/kortix-logo';
 import { AgentRunLimitDialog } from '@/components/thread/agent-run-limit-dialog';
-import { useFeatureFlag } from '@/lib/feature-flags';
 import { CustomAgentsSection } from './custom-agents-section';
 import { toast } from 'sonner';
 import { ReleaseBadge } from '../auth/release-badge';
@@ -65,6 +64,7 @@ const dashboardTourSteps: Step[] = [
 export function DashboardContent() {
   const [inputValue, setInputValue] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
   const [autoSubmit, setAutoSubmit] = useState(false);
   const { 
     selectedAgentId, 
@@ -101,7 +101,6 @@ export function DashboardContent() {
   } = useDashboardTour();
 
   // Feature flag for custom agents section
-  const { enabled: customAgentsEnabled } = useFeatureFlag('custom_agents');
 
   // Fetch agents to get the selected agent's name
   const { data: agentsResponse } = useAgents({
@@ -141,6 +140,7 @@ export function DashboardContent() {
   React.useEffect(() => {
     if (threadQuery.data && initiatedThreadId) {
       const thread = threadQuery.data;
+      setIsRedirecting(true);
       if (thread.project_id) {
         router.push(`/projects/${thread.project_id}/thread/${initiatedThreadId}`);
       } else {
@@ -172,7 +172,8 @@ export function DashboardContent() {
   ) => {
     if (
       (!message.trim() && !chatInputRef.current?.getPendingFiles().length) ||
-      isSubmitting
+      isSubmitting ||
+      isRedirecting
     )
       return;
 
@@ -205,6 +206,7 @@ export function DashboardContent() {
 
       if (result.thread_id) {
         setInitiatedThreadId(result.thread_id);
+        // Don't reset isSubmitting here - keep loading until redirect happens
       } else {
         throw new Error('Agent initiation did not return a thread_id.');
       }
@@ -224,7 +226,7 @@ export function DashboardContent() {
         const errorMessage = error instanceof Error ? error.message : 'Operation failed';
         toast.error(errorMessage);
       }
-    } finally {
+      // Only reset loading state if there was an error or no thread_id was returned
       setIsSubmitting(false);
     }
   };
@@ -243,7 +245,7 @@ export function DashboardContent() {
   }, []);
 
   React.useEffect(() => {
-    if (autoSubmit && inputValue && !isSubmitting) {
+    if (autoSubmit && inputValue && !isSubmitting && !isRedirecting) {
       const timer = setTimeout(() => {
         handleSubmit(inputValue);
         setAutoSubmit(false);
@@ -251,7 +253,7 @@ export function DashboardContent() {
 
       return () => clearTimeout(timer);
     }
-  }, [autoSubmit, inputValue, isSubmitting]);
+  }, [autoSubmit, inputValue, isSubmitting, isRedirecting]);
 
   return (
     <>
@@ -337,7 +339,7 @@ export function DashboardContent() {
       <div className="flex flex-col h-screen w-full overflow-hidden">
         <div className="flex-1 overflow-y-auto">
           <div className="min-h-full flex flex-col">
-            {customAgentsEnabled && (
+            {(
               <div className="flex justify-center px-4 pt-4 md:pt-8">
                 <ReleaseBadge text="Custom Agents, Playbooks, and more!" link="/agents?tab=my-agents" />
               </div>
@@ -356,7 +358,7 @@ export function DashboardContent() {
                   <ChatInput
                     ref={chatInputRef}
                     onSubmit={handleSubmit}
-                    loading={isSubmitting}
+                    loading={isSubmitting || isRedirecting}
                     placeholder="Describe what you need help with..."
                     value={inputValue}
                     onChange={setInputValue}
@@ -372,7 +374,7 @@ export function DashboardContent() {
                 </div>
               </div>
             </div>
-            {enabledEnvironment && customAgentsEnabled && (
+            {enabledEnvironment && (
               <div className="w-full px-4 pb-8" data-tour="custom-agents">
                 <div className="max-w-7xl mx-auto">
                   <CustomAgentsSection 

@@ -48,6 +48,9 @@ class CredentialProfileTool(AgentBuilderBaseTool):
             formatted_profiles = []
             for profile in profiles:
                 formatted_profiles.append({
+                    "profile_id": profile.profile_id,
+                    "connected_account_id": getattr(profile, 'connected_account_id', None),
+                    "account_id": profile.account_id,
                     "profile_name": profile.profile_name,
                     "display_name": profile.display_name,
                     "toolkit_slug": profile.toolkit_slug,
@@ -246,7 +249,7 @@ After connecting, you'll be able to use {result.toolkit.name} tools in your agen
             current_tools['custom_mcp'] = updated_mcps
             current_config['tools'] = current_tools
             
-            from agent.versioning.version_service import get_version_service
+            from agent.handlers.versioning.version_service import get_version_service
             version_service = await get_version_service()
             new_version = await version_service.create_version(
                 agent_id=self.agent_id,
@@ -362,7 +365,7 @@ After connecting, you'll be able to use {result.toolkit.name} tools in your agen
                     updated_mcps = [mcp for mcp in current_custom_mcps if mcp.get('config', {}).get('profile_id') != profile_id]
                     
                     if len(updated_mcps) != len(current_custom_mcps):
-                        from agent.versioning.version_service import get_version_service
+                        from agent.handlers.versioning.version_service import get_version_service
                         try:
                             current_tools['custom_mcp'] = updated_mcps
                             current_config['tools'] = current_tools

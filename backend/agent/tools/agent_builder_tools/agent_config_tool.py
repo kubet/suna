@@ -74,7 +74,7 @@ class AgentConfigTool(AgentBuilderBaseTool):
         <parameter name="name">Research Assistant</parameter>
         <parameter name="description">An AI assistant specialized in conducting research and providing comprehensive analysis</parameter>
         <parameter name="system_prompt">Act as a research analyst. Always verify sources</parameter>
-                        <parameter name="agentpress_tools">{"web_search_tool": true, "sb_files_tool": true, "sb_shell_tool": false}</parameter>
+        <parameter name="agentpress_tools">{"web_search_tool": true, "sb_files_tool": true, "sb_shell_tool": false}</parameter>
         <parameter name="avatar">🔬</parameter>
         <parameter name="avatar_color">#4F46E5</parameter>
         </invoke>
@@ -92,6 +92,7 @@ class AgentConfigTool(AgentBuilderBaseTool):
     ) -> ToolResult:
         try:
             account_id = await self._get_current_account_id()
+            
             client = await self.db.client
             
             agent_result = await client.table('agents').select('*').eq('agent_id', self.agent_id).execute()
@@ -142,7 +143,7 @@ class AgentConfigTool(AgentBuilderBaseTool):
             version_created = False
             if config_changed:
                 try:
-                    from agent.versioning.version_service import get_version_service
+                    from agent.handlers.versioning.version_service import get_version_service
                     current_version = None
                     if current_agent.get('current_version_id'):
                         try:
@@ -160,9 +161,7 @@ class AgentConfigTool(AgentBuilderBaseTool):
                         return self.fail_response("No current version found to update from")
                     
                     if system_prompt is not None:
-                        existing_prompt = current_version.get('system_prompt', '')
-                        priority_addition = f"\n\n=== CRITICAL ADDITION ===\n{system_prompt}\n=== END CRITICAL ADDITION ==="
-                        current_system_prompt = f"{existing_prompt}{priority_addition}" if existing_prompt else system_prompt
+                        current_system_prompt = system_prompt
                     else:
                         current_system_prompt = current_version.get('system_prompt', '')
                     
@@ -198,21 +197,25 @@ class AgentConfigTool(AgentBuilderBaseTool):
                         merged_mcps = []
                         existing_identifiers = set()
                         
+                        # Add existing MCPs
                         for existing_mcp in current_configured_mcps:
                             identifier = get_mcp_identifier(existing_mcp)
                             if identifier:
                                 existing_identifiers.add(identifier)
                             merged_mcps.append(existing_mcp)
                         
+                        # Process new MCPs
                         for new_mcp in configured_mcps:
                             identifier = get_mcp_identifier(new_mcp)
                             
                             if identifier and identifier in existing_identifiers:
+                                # Update existing MCP
                                 for i, existing_mcp in enumerate(merged_mcps):
                                     if get_mcp_identifier(existing_mcp) == identifier:
                                         merged_mcps[i] = new_mcp
                                         break
                             else:
+                                # Add new MCP
                                 merged_mcps.append(new_mcp)
                                 if identifier:
                                     existing_identifiers.add(identifier)
@@ -289,7 +292,7 @@ class AgentConfigTool(AgentBuilderBaseTool):
             version_data = None
             if agent_data.get('current_version_id'):
                 try:
-                    from agent.versioning.version_service import get_version_service
+                    from agent.handlers.versioning.version_service import get_version_service
                     account_id = await self._get_current_account_id()
                     version_service = await get_version_service()
                     version_obj = await version_service.get_version(

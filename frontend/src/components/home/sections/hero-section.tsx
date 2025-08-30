@@ -265,6 +265,7 @@ export function HeroSection() {
                   selectedAgentId={selectedAgentId}
                   onAgentSelect={setSelectedAgentId}
                   autoFocus={false}
+                  enableAdvancedConfig={false}
                 />
               </div>
               <div>
