@@ -18,6 +18,7 @@ import { QuoteSection } from '@/components/home/sections/quote-section';
 import { TestimonialSection } from '@/components/home/sections/testimonial-section';
 import { FAQSection } from '@/components/home/sections/faq-section';
 import { AgentShowcaseSection } from '@/components/home/sections/agent-showcase-section';
+import { AIWorkerSection } from '@/components/home/sections/ai-worker-section';
 
 export default function Home() {
   return (
@@ -27,14 +28,15 @@ export default function Home() {
         <main className="flex flex-col items-center justify-center min-h-screen w-full">
           <div className="w-full">
             <HeroSection />
-            <BentoSection />
+            <AIWorkerSection />
+            {/* <BentoSection /> */}
             {/* <AgentShowcaseSection /> */}
-            <OpenSourceSection />
-            <PricingSection />
+            {/* <OpenSourceSection /> */}
+            {/* <PricingSection /> */}
             {/* <TestimonialSection /> */}
             {/* <FAQSection /> */}
-            <CTASection />
-            <FooterSection />
+            {/* <CTASection /> */}
+            {/* <FooterSection /> */}
           </div>
         </main>
       </BackgroundAALChecker>
