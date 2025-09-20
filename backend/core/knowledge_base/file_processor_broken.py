@@ -138,42 +138,66 @@ class FileProcessor:
             # Real context limits (conservative, tested)
             models = [
                 ("gpt-4o-mini", 120_000),  # Reliable, fast
-                ("claude-3-haiku", 180_000),  # Good fallback  
+                ("claude-3-haiku", 180_000),  # Good fallback
                 ("gpt-3.5-turbo", 14_000)  # Emergency fallback
             ]
             
             # Proper token estimation (English text: ~0.75 tokens per char)
             estimated_tokens = int(len(content) * 0.75)
-            logger.info(f"Processing {filename}: {len(content):,} chars (~{estimated_tokens:,} tokens)")
             
             for model_name, context_limit in models:
                 try:
-                    # Reserve tokens for prompt and response (realistic budget)
-                    prompt_tokens = 500  # Prompt overhead
-                    response_tokens = 800  # Adequate for format
-                    usable_tokens = context_limit - prompt_tokens - response_tokens
+                    # Reserve tokens for prompt and response
+                    usable_context = context_limit - 1000  # Reserve for prompt + response
                     
-                    if estimated_tokens > usable_tokens:
-                        # Semantic chunking - split by headers/structure
-                        processed_content = self._semantic_chunk(content, usable_tokens)
-                        logger.info(f"Chunked content: {len(processed_content):,} chars")
-                    else:
+                    if estimated_tokens <= usable_context:
+                        # Content fits, use full content
                         processed_content = content
+                    else:
+                        # Content too large, intelligent chunking
+                        processed_content = self._smart_chunk_content(content, usable_context * 4)  # Convert back to chars
                     
-                    # Simple, focused prompt that actually works
-                    prompt = f"""Analyze this file and create a brief summary for AI agent routing.
-
+                    prompt = f"""Create an ACTIONABLE brief that serves two purposes: (1) high-signal context to inject into an AI agent; (2) clear routing rules so the agent knows WHEN to query this file via semantic search. Do NOT infer beyond the file. If something isn’t present, write "None".
 File: {filename}
-Content: {processed_content}
+Content:
+{processed_content}
 
-Format your response as:
-SUMMARY: 2-3 sentences describing what this file contains and its purpose
-KEYWORDS: 8-12 key terms, IDs, functions, or concepts (comma-separated)  
-USE_FOR: 3-5 specific query types this file would help with
-AVOID_FOR: 2-3 cases where this file is NOT relevant
-KEY_FACTS: 4-6 important details with exact names/values/limits
+OUTPUT — PLAIN TEXT ONLY (no JSON/Markdown).
+- Emit 1–5 CARDS if the file covers distinct topics/modules/features.
+- Separate cards with a single line: ---
+- Each card MUST follow the label order below, one line per label.
+- For multi-item labels, separate items with "; " (semicolon + space).
+- Keep identifiers exact (case/punctuation). Normalize dates to YYYY-MM-DD. Include units for numbers.
+- Max ~180 words per card. No extra lines before the first label or after the last label.
 
-Keep it concise and actionable."""
+Card: <1-based index>
+Title: <5–9 words capturing this card’s scope>
+Context: <2–4 sentences to inject verbatim: what this is; key capability; constraints>
+Use If: <3–6 precise triggers (query intents, entities, conditions) that SHOULD route here>
+Avoid If: <2–4 cases where this card SHOULD NOT be used>
+Signals (Strict): <4–8 exact tokens/APIs/paths/IDs/error codes/config keys/tables>
+Signals (Fuzzy): <6–12 synonyms/aliases/near-terms that often imply this topic>
+Key Facts: <4–8 atomic facts with exact names/IDs/dates/versions/limits>
+Inputs Needed: <required params/resources: IDs; roles/scopes; time ranges; files; env vars>
+Actions: <concrete ops enabled: compute; look up; call API X; query table Y; transform; route>
+Caveats: <constraints; edge conditions; rate limits; privacy/security notes; staleness>
+Related: <adjacent tools/files/modules to check; exact names or paths>
+Confidence: <High/Medium/Low — 1-line reason>
+
+FINAL LINES (after all cards):
+Cards: <number of cards emitted>
+Index: <Card 1 Title>; <Card 2 Title>; <…>
+GlobalUseIf: <3–6 cross-card triggers that most strongly indicate this file>
+GlobalAvoidIf: <2–4 cross-card no-go cases (e.g., different product/version/domain)>
+Validity: <date range or “Unknown”> ; Owner: <team/author if present>
+
+QUALITY BAR:
+- Prefer facts over prose; ignore boilerplate (ToC, headers, legal).
+- Extract canonical terminology (functions/classes/APIs), config keys, file paths, schemas, error codes.
+- Represent decision logic (preconditions/branches) as “Use If”/“Avoid If” signals.
+- If many sections, choose the top 3–5 by impact (usage frequency, dependency weight, criticality).
+- If homogeneous content, emit a single high-signal card."""
+
 
                     messages = [{"role": "user", "content": prompt}]
                     
@@ -202,7 +226,7 @@ Keep it concise and actionable."""
                         continue
                         
                 except Exception as e:
-                    logger.error(f"Model {model_name} failed: {str(e)}")
+                    logger.warning(f"Model {model_name} failed: {str(e)}")
                     continue
             
             # All models failed - create structured fallback (not meta-garbage)
@@ -394,4 +418,4 @@ Keep it concise and actionable."""
             
         except Exception as e:
             logger.error(f"Error extracting content from {filename}: {str(e)}")
-            return f"[Error extracting content from {filename}] - File is stored but content extraction failed: {str(e)}"
+            return f"[Error extracting content from {filename}] - File is stored but content extraction failed: {str(e)}" 
