@@ -15,6 +15,7 @@ import { AIWorkerSection } from '@/components/home/sections/new/ai-workers';
 import { SlidesSection } from '@/components/home/sections/new/slides-section';
 import { PersonalizationSection } from '@/components/home/sections/new/personalization-section';
 import { FAQSection } from '@/components/home/sections/new/faq-section';
+import { NewFooterSection } from '@/components/home/sections/new-footer-section';
 
 export default function Home() {
 
@@ -26,6 +27,7 @@ export default function Home() {
           <NewHeroSection />
           <FAQSection />
           <PricingSection showInfo={false} />
+          <NewFooterSection />
         </main>
       </BackgroundAALChecker>
     </>
