@@ -41,6 +41,7 @@ import { ReleaseBadge } from '../auth/release-badge';
 import { Calendar, MessageSquare, Plus, Sparkles, Zap } from 'lucide-react';
 import { AgentConfigurationDialog } from '@/components/agents/agent-configuration-dialog';
 import { useSunaModePersistence } from '@/hooks/use-suna-modes-persistence';
+import { AnimatedBrandmark } from './animated-brandmark';
 
 const PENDING_PROMPT_KEY = 'pendingAgentPrompt';
 
@@ -414,10 +415,13 @@ export function DashboardContent() {
             )} */}
 
             {/* Centered content area */}
-            <div className="flex-1 flex items-start justify-center pt-[30vh]">
+            <div className="flex-1 flex items-start justify-center pt-[30vh] relative">
+              {/* Animated Background Brandmark */}
+              <AnimatedBrandmark />
+
               {/* Super Worker View - Suna only */}
               {viewMode === 'super-worker' && (
-                <div className="w-full animate-in fade-in-0 duration-300">
+                <div className="w-full animate-in fade-in-0 duration-300 relative z-10">
                   {/* Title and chat input - Fixed position */}
                   <div className="px-4 py-8">
                     <div className="w-full max-w-3xl mx-auto flex flex-col items-center space-y-4 md:space-y-6">
