@@ -32,35 +32,35 @@ let currentMode: MarkdownMode = 'native'; // Default to native (current behavior
  * @param mode - 'native' for current TextInput-based, 'webview' for new WebView-based
  */
 export function setMarkdownMode(mode: MarkdownMode) {
-  currentMode = mode;
-  console.log(`[MarkdownSwitcher] Mode set to: ${mode}`);
-  console.log(`  - 'native': Current TextInput-based renderer (may have height issues)`);
-  console.log(`  - 'webview': New WebView-based renderer (perfect height, text selection)`);
+    currentMode = mode;
+    console.log(`[MarkdownSwitcher] Mode set to: ${mode}`);
+    console.log(`  - 'native': Current TextInput-based renderer (may have height issues)`);
+    console.log(`  - 'webview': New WebView-based renderer (perfect height, text selection)`);
 }
 
 /**
  * Get the current markdown rendering mode
  */
 export function getMarkdownMode(): MarkdownMode {
-  return currentMode;
+    return currentMode;
 }
 
 // Expose to global for easy console access in dev mode
 if (__DEV__) {
-  (globalThis as any).setMarkdownMode = setMarkdownMode;
-  (globalThis as any).getMarkdownMode = getMarkdownMode;
-  console.log('[MarkdownSwitcher] Test WebView markdown: globalThis.setMarkdownMode("webview")');
+    (globalThis as any).setMarkdownMode = setMarkdownMode;
+    (globalThis as any).getMarkdownMode = getMarkdownMode;
+    console.log('[MarkdownSwitcher] Test WebView markdown: globalThis.setMarkdownMode("webview")');
 }
 
 export interface MarkdownTextProps {
-  /** The markdown text content to render */
-  children: string;
-  /** Additional style for the container */
-  style?: TextStyle;
-  /** Whether to use dark mode (if not provided, will use color scheme hook) */
-  isDark?: boolean;
-  /** Callback when a link is pressed (WebView mode only) */
-  onLinkPress?: (url: string) => void;
+    /** The markdown text content to render */
+    children: string;
+    /** Additional style for the container */
+    style?: TextStyle;
+    /** Whether to use dark mode (if not provided, will use color scheme hook) */
+    isDark?: boolean;
+    /** Callback when a link is pressed (WebView mode only) */
+    onLinkPress?: (url: string) => void;
 }
 
 /**
@@ -70,29 +70,29 @@ export interface MarkdownTextProps {
  * Switch modes at runtime with globalThis.setMarkdownMode('webview' | 'native')
  */
 export function MarkdownText({
-  children,
-  style,
-  isDark,
-  onLinkPress,
+    children,
+    style,
+    isDark,
+    onLinkPress,
 }: MarkdownTextProps) {
-  if (currentMode === 'webview') {
+    if (currentMode === 'webview') {
+        return (
+            <WebViewMarkdown
+                style={style}
+                isDark={isDark}
+                onLinkPress={onLinkPress}
+            >
+                {children}
+            </WebViewMarkdown>
+        );
+    }
+
+    // Default: native mode
     return (
-      <WebViewMarkdown
-        style={style}
-        isDark={isDark}
-        onLinkPress={onLinkPress}
-      >
-        {children}
-      </WebViewMarkdown>
+        <SelectableMarkdownText style={style} isDark={isDark}>
+            {children}
+        </SelectableMarkdownText>
     );
-  }
-  
-  // Default: native mode
-  return (
-    <SelectableMarkdownText style={style} isDark={isDark}>
-      {children}
-    </SelectableMarkdownText>
-  );
 }
 
 // Also export individual components for direct use
