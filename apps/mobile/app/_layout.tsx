@@ -6,6 +6,7 @@ import { initializeI18n } from '@/lib/utils/i18n';
 import { usePresence } from '@/hooks/usePresence';
 import { AuthProvider, LanguageProvider, AgentProvider, BillingProvider, AdvancedFeaturesProvider, TrackingProvider, useAuthContext } from '@/contexts';
 import { PresenceProvider } from '@/contexts/PresenceContext';
+import { SelectionProvider } from '@/contexts/SelectionContext';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { ThemeProvider } from '@react-navigation/native';
@@ -445,8 +446,9 @@ export default function RootLayout() {
                   <AgentProvider>
                     <AdvancedFeaturesProvider>
                       <PresenceProvider>
-                        <ToastProvider>
-                          <BottomSheetModalProvider>
+                        <SelectionProvider>
+                          <ToastProvider>
+                            <BottomSheetModalProvider>
                             <ThemeProvider value={NAV_THEME[activeColorScheme]}>
                               <StatusBar style={activeColorScheme === 'dark' ? 'light' : 'dark'} />
 <AuthProtection>
@@ -478,8 +480,9 @@ export default function RootLayout() {
                                 </AuthProtection>
                               <PortalHost />
                             </ThemeProvider>
-                          </BottomSheetModalProvider>
-                        </ToastProvider>
+                            </BottomSheetModalProvider>
+                          </ToastProvider>
+                        </SelectionProvider>
                       </PresenceProvider>
                     </AdvancedFeaturesProvider>
                   </AgentProvider>

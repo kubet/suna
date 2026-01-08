@@ -2,6 +2,7 @@ import * as React from 'react';
 import { Platform, Pressable, View, ScrollView, Alert, Modal, RefreshControl, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColorScheme } from 'nativewind';
+import { useSelection } from '@/contexts/SelectionContext';
 import Animated, {
   useAnimatedStyle,
   withTiming,
@@ -207,6 +208,9 @@ export function ThreadPage({
   const { agentManager, audioRecorder, audioHandlers, isTranscribing } = useChatCommons(chat);
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
+  
+  // Selection state - disable scroll when user is selecting text in WebView
+  const { isSelecting } = useSelection();
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
   const router = useRouter();
@@ -595,6 +599,8 @@ export function ThreadPage({
             ref={scrollViewRef}
             className="flex-1"
             showsVerticalScrollIndicator={true}
+            // CRITICAL: Disable scroll when selecting text to allow handle dragging
+            scrollEnabled={!isSelecting}
             contentContainerStyle={{
               flexGrow: 1,
               paddingTop: Math.max(insets.top, 16) + 80,

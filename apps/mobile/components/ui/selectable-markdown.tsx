@@ -25,6 +25,25 @@ import {
   Dimensions,
 } from 'react-native';
 import { MarkdownTextInput } from '@expensify/react-native-live-markdown';
+import { WebViewMarkdown } from './webview-markdown';
+
+// ==========================================
+// MARKDOWN RENDERING MODE
+// Switch between native TextInput and WebView
+// ==========================================
+type MarkdownMode = 'native' | 'webview';
+let MARKDOWN_MODE: MarkdownMode = 'native';
+
+export function setMarkdownMode(mode: MarkdownMode) {
+  MARKDOWN_MODE = mode;
+  console.log(`[MD] Mode set to: ${mode}`);
+  console.log(`  'native'  = Current TextInput (may have height issues)`);
+  console.log(`  'webview' = WebView-based (perfect height, text selection)`);
+}
+
+export function getMarkdownMode(): MarkdownMode {
+  return MARKDOWN_MODE;
+}
 import {
   markdownParser,
   lightMarkdownStyle,
@@ -112,7 +131,10 @@ if (__DEV__) {
   (globalThis as any).setMaxLinePhantom = setMaxLinePhantom;
   (globalThis as any).setBoldWidthFactor = setBoldWidthFactor;
   (globalThis as any).getFactors = getFactors;
-  console.log('[MD] Tune: setBasePhantom(16) / setLinePhantom(0.5) / setMaxLinePhantom(20)');
+  // WebView mode toggle
+  (globalThis as any).setMarkdownMode = setMarkdownMode;
+  (globalThis as any).getMarkdownMode = getMarkdownMode;
+  console.log('[MD] Test WebView: globalThis.setMarkdownMode("webview")');
 }
 
 
@@ -123,6 +145,8 @@ export interface SelectableMarkdownTextProps {
   style?: TextStyle;
   /** Whether to use dark mode (if not provided, will use color scheme hook) */
   isDark?: boolean;
+  /** Callback when text selection state changes (WebView mode only) - use to disable parent scroll */
+  onSelectionChange?: (isSelecting: boolean) => void;
 }
 
 /**
@@ -575,9 +599,24 @@ export const SelectableMarkdownText: React.FC<SelectableMarkdownTextProps> = ({
   children,
   style,
   isDark: isDarkProp,
+  onSelectionChange,
 }) => {
   const { colorScheme } = useColorScheme();
   const isDark = isDarkProp ?? colorScheme === 'dark';
+
+  // WebView mode: Use WebView-based renderer (perfect height, native text selection)
+  if (MARKDOWN_MODE === 'webview') {
+    const text = typeof children === 'string' ? children.trimEnd() : String(children || '').trimEnd();
+    return (
+      <WebViewMarkdown
+        isDark={isDark}
+        style={style}
+        onSelectionChange={onSelectionChange}
+      >
+        {text}
+      </WebViewMarkdown>
+    );
+  }
 
   // Ensure children is a string and trim trailing whitespace to prevent extra spacing on iOS
   const text = typeof children === 'string'
